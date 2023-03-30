@@ -93,8 +93,8 @@ class ACOAlgorithm(ProblemBase):
                 if not shortest_distance or ant.traveled_distance < shortest_distance:
                     shortest_distance = ant.traveled_distance
                     best_path = ant.traveled_nodes
-                    print('Updated shortest_distance="%s" and best_path="%s"',
-                          shortest_distance, best_path)
+                    print(
+                        f'Updated shortest_distance="{shortest_distance}" and best_path="{best_path}"')
 
                 # Reset ants' thread
                 ant.initialize(self.__graph.depot)
@@ -102,10 +102,11 @@ class ACOAlgorithm(ProblemBase):
             self._visualizer.add_data(
                 best_path=best_path,
                 pheromone_map={edge: self.__graph.get_edge_pheromone(
-                    edge) for edge in edges}
+                    edge) for edge in edges},
+                fitness=shortest_distance
             )
 
-        LOGGER.info('Finish! Shortest_distance="%s" and best_path="%s"',
+        LOGGER.info(f'Finish! Shortest_distance="%s" and best_path="%s"',
                     shortest_distance, best_path)
         return best_path, shortest_distance
 
@@ -114,3 +115,9 @@ class ACOAlgorithm(ProblemBase):
         Play the visualization of the problem
         """
         return self._visualizer.replay(graph=self.__graph)
+
+    def plot_fitness(self):
+        """
+        Plot the fitness over time
+        """
+        return self._visualizer.plot_fitness()

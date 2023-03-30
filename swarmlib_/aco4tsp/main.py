@@ -6,7 +6,7 @@
 import logging
 from os import path, getcwd
 import inspect
-from .aco_problem import ACOProblem
+from .aco_algorithm import ACOProblem
 
 LOGGER = logging.getLogger(__name__)
 
@@ -72,7 +72,8 @@ def configure_parser(sub_parsers):
         '-t',
         '--tsp-file',
         type=str,
-        default=path.join(path.abspath(path.dirname(inspect.getfile(inspect.currentframe()))), 'resources/burma14.tsp'),
+        default=path.join(path.abspath(path.dirname(inspect.getfile(
+            inspect.currentframe()))), 'resources/burma14.tsp'),
         help='Path of the tsp file that shall be loaded (default loads the built-in burma14.tsp)')
 
     parser.add_argument(

@@ -31,6 +31,7 @@ class Graph:
         nodes = list(df['cust'].to_list())
         names = {n: n for n in nodes}
 
+        coords = self._get_coords()
         # add every node with some associated metadata
         for n in nodes:
             is_depot = n == self.depot
@@ -44,8 +45,8 @@ class Graph:
 
         # add every edge with some associated metadata
         for a, b in product(df['cust'], df['cust']):
-            (x, y) = self._get_coords(a)
-            (x1, y1) = self._get_coords(b)
+            (x, y) = coords[a]
+            (x1, y1) = coords[b]
             dist = sqrt((x1 - x) ** 2 + (y1 - y) ** 2)
             G.add_edge(names[a], names[b], weight=dist)
 
@@ -53,16 +54,15 @@ class Graph:
 
     @property
     def node_coordinates(self):
-        return self._get_coords(self._df['cust'])
+        return self._get_coords()
 
     @property
     def name(self):
         return 'ACO'
 
-    def _get_coords(self, a):
+    def _get_coords(self):
         df = self._df
-        row = df[df['cust'] == a].iloc[0]
-        return row['x'], row['y']
+        return {c: (x, y) for c, x, y in zip(df['cust'], df['x'], df['y'])}
 
     def get_nodes(self):
         """Get all nodes."""
