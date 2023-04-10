@@ -9,7 +9,7 @@ from matplotlib import animation
 from matplotlib import pyplot as plt
 import networkx as nx
 
-from swarmlib_.aco4tsp.tsp_graph import Graph
+from swarmlib_.aco4tsp.dynamic_vrp_env.routes_graph import RoutesGraph
 
 from ..util.visualizer_base import VisualizerBase
 import seaborn as sns
@@ -51,7 +51,7 @@ class Visualizer(VisualizerBase):  # pylint:disable=too-many-instance-attributes
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
         sns.set_theme('paper')
 
-        graph = cast(Graph, kwargs['graph'])
+        graph = cast(RoutesGraph, kwargs['graph'])
         node_pos = graph.node_coordinates
         depot = graph.depot
 
@@ -76,6 +76,28 @@ class Visualizer(VisualizerBase):  # pylint:disable=too-many-instance-attributes
         a = animation.FuncAnimation(fig, _update, frames=len(
             self._best_paths), repeat=False)
         a._start()
+
+    def plot_result(self, graph):
+        fig, ax = plt.subplots(1, 1)
+        best_path = self._best_paths[-1]
+        node_pos = graph.node_coordinates
+        depot = graph.depot
+        best_path_colorized = self._colorize(best_path, depot)
+       
+
+        nx.draw_networkx_nodes(
+                graph.networkx_graph, pos=node_pos, ax=ax, node_color=self._node_color)
+        nx.draw_networkx_labels(
+                graph.networkx_graph, pos=node_pos, ax=ax)
+        nx.draw_networkx_edges(
+                graph.networkx_graph, pos=node_pos,
+                width=self._edge_widths[-1],
+                edgelist=[e for e in best_path_colorized],
+                edge_color=best_path_colorized.values(),
+                ax=ax)
+
+
+
 
     def plot_fitness(self):
         fig, axs = plt.subplots(1, 1)

@@ -8,10 +8,13 @@ import logging
 from os import path
 
 import pandas as pd
+
+from swarmlib_.aco4tsp.dynamic_vrp_env.env import DynamicVrpEnv
 from .ant import Ant
-from .tsp_graph import Graph
+from .dynamic_vrp_env.routes_graph import RoutesGraph
 from .visualizer import Visualizer
 from ..util.problem_base import ProblemBase
+from pathlib import Path
 
 LOGGER = logging.getLogger(__name__)
 
@@ -19,14 +22,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ACOAlgorithm(ProblemBase):
-    def __init__(self, df: pd.DataFrame, c, **kwargs):
+    def __init__(self, instance_path: Path, ant_capacity, **kwargs):
         """Initializes a new instance of the `ACOProblem` class.
 
         Arguments:  \r
         `ant_number` -- Number of ants used for solving
 
         Keyword arguments:  \r
-        `tsp_file`   -- Path of the tsp file that shall be loaded  \r
         `rho`           -- Evaporation rate (default 0.5)  \r
         `alpha`         -- Relative importance of the pheromone (default 0.5)  \r
         `beta`          -- Relative importance of the heuristic information (default 0.5)  \r
@@ -37,10 +39,8 @@ class ACOAlgorithm(ProblemBase):
         """
         super().__init__(**kwargs)
         self.__ant_number = kwargs['ant_number']  # Number of ants
-        tsp_file = kwargs.get('tsp_file', path.join(path.abspath(path.dirname(
-            inspect.getfile(inspect.currentframe()))), 'resources/burma14.tsp'))
-        self.__graph = Graph(df)
-        LOGGER.info('Loaded tsp problem="%s"', tsp_file)
+
+        self._env = DynamicVrpEnv(instance_path)
 
         self.__rho = kwargs.get('rho', 0.5)  # evaporation rate
         self.__alpha = kwargs.get('alpha', 0.5)  # used for edge detection
@@ -51,7 +51,7 @@ class ACOAlgorithm(ProblemBase):
         self.__use_2_opt = kwargs.get('two_opt', False)
 
         self._visualizer = Visualizer(**kwargs)
-        self.c = c
+        self.ant_capacity = ant_capacity
 
     def solve(self):
         """
@@ -64,13 +64,18 @@ class ACOAlgorithm(ProblemBase):
 
         # Create ants
         ants = [
-            Ant(self.__graph.depot,
-                self.__graph, self.__alpha, self.__beta, self.__Q, self.__use_2_opt, self._random, self.c)
+            Ant(self._env.depot,
+                self._env._routes_graph, self.__alpha, self.__beta, self.__Q, self.__use_2_opt, self._random, self.ant_capacity)
             for _ in range(self.__ant_number)
         ]
 
         for _ in range(self.__num_iterations):
             # Start all multithreaded ants
+            _, env_change = self._env.step()
+            if env_change:
+                print(
+                    f'[{env_change.type}] [{env_change.from_node}] -> [{env_change.to_node}]')
+
             for ant in ants:
                 ant.start()
 
@@ -79,11 +84,11 @@ class ACOAlgorithm(ProblemBase):
                 ant.join()
 
             # decay pheromone
-            edges = self.__graph.get_edges()
+            edges = self._env._routes_graph.get_edges()
             for edge in edges:
-                pheromone = self.__graph.get_edge_pheromone(edge)
+                pheromone = self._env._routes_graph.get_edge_pheromone(edge)
                 pheromone *= 1-self.__rho
-                self.__graph.set_pheromone(edge, pheromone)
+                self._env._routes_graph.set_pheromone(edge, pheromone)
 
             # Add each ant's pheromone
             for ant in ants:
@@ -97,11 +102,11 @@ class ACOAlgorithm(ProblemBase):
                         f'Updated shortest_distance="{shortest_distance}" and best_path="{best_path}"')
 
                 # Reset ants' thread
-                ant.initialize(self.__graph.depot)
+                ant.initialize(self._env._routes_graph.depot)
 
             self._visualizer.add_data(
                 best_path=best_path,
-                pheromone_map={edge: self.__graph.get_edge_pheromone(
+                pheromone_map={edge: self._env._routes_graph.get_edge_pheromone(
                     edge) for edge in edges},
                 fitness=shortest_distance
             )
@@ -114,7 +119,10 @@ class ACOAlgorithm(ProblemBase):
         """
         Play the visualization of the problem
         """
-        return self._visualizer.replay(graph=self.__graph)
+        return self._visualizer.replay(graph=self._env._routes_graph)
+    
+    def plot_result(self):
+        return self._visualizer.plot_result(self._env._routes_graph)
 
     def plot_fitness(self):
         """

@@ -2,6 +2,7 @@
 #  Copyright (c) Leo Hanisch. All rights reserved.
 #  Licensed under the BSD 3-Clause License. See LICENSE.txt in the project root for license information.
 # ------------------------------------------------------------------------------------------------------
+from dataclasses import dataclass, asdict
 from itertools import product
 from math import sqrt
 import networkx
@@ -10,17 +11,44 @@ import logging
 from copy import deepcopy
 from threading import RLock
 import networkx as nx
+import pandas as pd
 
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Graph:
-    def __init__(self, df):
+@dataclass
+class Node:
+    name: str
+    demand: int
+    service: int
+    from_: int
+    to: int
+    coord: tuple
+    is_depot: bool = False
+
+    @classmethod
+    def from_series(cls, series: pd.Series):
+        return cls(
+            name=series['cust'].iloc[0],
+            demand=series['demand'].iloc[0],
+            service=series['service'].iloc[0],
+            from_=series['from'].iloc[0],
+            to=series['to'].iloc[0],
+            coord=(series['x'].iloc[0], series['y'].iloc[0]),
+            is_depot=series['cust'].iloc[0] == 1
+        )
+
+
+class RoutesGraph:
+    def __init__(self, df: pd.DataFrame):
         self.depot = 1
         self._df = df
         self.networkx_graph = self._create_graph(df)
         self.__lock = RLock()
+
+    def max_demand(self):
+        return self._df['demand'].max()
 
     def _create_graph(self, df: pd.DataFrame):
         G = networkx.Graph()
@@ -36,12 +64,7 @@ class Graph:
         for n in nodes:
             is_depot = n == self.depot
             r = df[df['cust'] == n]
-            G.add_node(names[n], coord=(r['x'].iloc[0], r['y'].iloc[0]),
-                       demand=r['demand'].iloc[0],
-                       from_=r['from'].iloc[0],
-                       to_=r['to'].iloc[0],
-                       service=r['service'].iloc[0],
-                       is_depot=is_depot)
+            G.add_node(names[n], **asdict(Node.from_series(r)))
 
         # add every edge with some associated metadata
         for a, b in product(df['cust'], df['cust']):
@@ -49,8 +72,18 @@ class Graph:
             (x1, y1) = coords[b]
             dist = sqrt((x1 - x) ** 2 + (y1 - y) ** 2)
             G.add_edge(names[a], names[b], weight=dist)
-
         return G
+
+    def get_node(self, name: str):
+        return Node(
+            **self.networkx_graph.nodes[name]
+        )
+
+    def update_node(self, name: str, new_node: Node):
+        self.networkx_graph.nodes[name].update(asdict(new_node))
+
+    def add_node(self, new_node: Node):
+        self.networkx_graph.add_node(new_node.name, **asdict(new_node))
 
     @property
     def node_coordinates(self):
@@ -67,7 +100,7 @@ class Graph:
     def get_nodes(self):
         """Get all nodes."""
         # with self.__lock:
-        return list(self.networkx_graph.nodes())
+        return [self.get_node(n) for n in self.networkx_graph.nodes()]
 
     def get_edges(self, node=None):
         """Get all edges connected to the given node. (u,v)"""
@@ -98,10 +131,9 @@ class Graph:
         return self.__get_edge_data(edge, 'weight')
 
     def __get_edge_data(self, edge, label):
-        # with self.__lock:
         data = self.networkx_graph.get_edge_data(*edge)
         result = deepcopy(data.get(label, 0))
-
-        # LOGGER.debug('Get data="%s", value="%s" for edge="%s"',
-        #              label, result, edge)
         return result
+
+    def remove_node(self, node_name):
+        self.networkx_graph.remove_node(node_name)
