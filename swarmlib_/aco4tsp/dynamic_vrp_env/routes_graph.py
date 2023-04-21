@@ -113,27 +113,30 @@ class RoutesGraph:
         with self.__lock:
             self.networkx_graph.add_edge(*edge, pheromone=value)
 
-    def get_connected_nodes(self, node):
+    def get_connected_nodes(self, node: int):
         """Get the connected nodes of the given node"""
         # with self.__lock:
         return nx.node_connected_component(self.networkx_graph, node)
 
-    def get_edge_pheromone(self, edge):
+    def get_edge_pheromone(self, edge: tuple[int, int]):
         """Get the pheromone value for the given edge"""
         sorted_edge = tuple(sorted(edge))
         return self.__get_edge_data(sorted_edge, 'pheromone')
 
-    def get_vertex_demand(self, node):
+    def get_vertex_demand(self, node: int):
         return nx.get_node_attributes(self.networkx_graph, 'demand')[node]
 
-    def get_edge_length(self, edge):
+    def get_edge_length(self, edge: tuple[int, int]):
         """Get the `rounded` length of the given edge."""
         return self.__get_edge_data(edge, 'weight')
 
-    def __get_edge_data(self, edge, label):
-        data = self.networkx_graph.get_edge_data(*edge)
-        result = deepcopy(data.get(label, 0))
+    def __get_edge_data(self, edge: tuple[int, int], label: str):
+        try:
+            data = self.networkx_graph.get_edge_data(*edge)
+            result = deepcopy(data.get(label, 0))
+        except AttributeError as e:
+            raise AttributeError(f'Edge {edge} not found') from e
         return result
 
-    def remove_node(self, node_name):
+    def remove_node(self, node_name: int):
         self.networkx_graph.remove_node(node_name)

@@ -8,11 +8,11 @@ from os import path, getcwd
 import inspect
 from .aco_algorithm import ACOProblem
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _run_aco4tsp(args):
-    LOGGER.info('Start ant colony optimization with parameters="%s"', args)
+    logger.info('Start ant colony optimization with parameters="%s"', args)
 
     if not path.isabs(args['tsp_file']):
         args['tsp_file'] = path.join(getcwd(), args['tsp_file'])
