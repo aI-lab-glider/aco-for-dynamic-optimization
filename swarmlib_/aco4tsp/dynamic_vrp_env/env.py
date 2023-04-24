@@ -27,14 +27,15 @@ class DynamicVrpEnv:
         return self._routes_graph, change
 
     def _change_routes_graph(self):
-        change = random.choices(
-            population=[
-                self._update_demand,
-                self._remove_node,
-                self._add_node],
-            weights=[0.5, 0.25, 0.25],
-            k=1
-        )[0]
+        change = self._update_demand
+        # random.choices(
+        # population=[
+        # self._update_demand,
+        self._remove_node,
+        # self._add_node],
+        # weights=[0.25],
+        # k=1
+        # )[0]
         return change()
 
     def _update_demand(self):
