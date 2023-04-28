@@ -23,7 +23,6 @@ class Ant(Thread):
         self._Q = Q
         self._use_2_opt = use_2_opt
         self._random = random
-        # self._vehicle_capacity = capacity
         self._vehicles = vehicles
         self._load = 0
         self._current_node = start_node
@@ -49,8 +48,9 @@ class Ant(Thread):
 
     def _make_step_for_vehicle(self, vehicle_id: int, vehicle: Vehicle):
         path = self.vehicle_paths[vehicle_id]
+        self._current_node = path[-1]
         possible_locations = self.graph.get_connected_nodes(
-            path[-1]).difference(self.traveled_nodes)
+            self._current_node).difference(self.traveled_nodes)
         a, b = self._select_edge(possible_locations)
         demand = self.graph.get_vertex_demand(b)
         if self._load + demand <= vehicle.capacity:
@@ -60,16 +60,15 @@ class Ant(Thread):
             self._move_to_next_node((a, self.graph.depot), vehicle_id)
             self._load = 0
 
-        # if self.__use_2_opt:
-        #     self.traveled_nodes, self.traveled_distance = run_2opt(
-        #         self.traveled_nodes,
-        #         self.graph.get_edge_length)
-
     def _select_edge(self, possible_locations):
         """Select the edge where to go next."""
         logger.debug('Possible locations="%s"', possible_locations)
         attractiveness = {}
         overall_attractiveness = .0
+
+        if not possible_locations:
+            return (self._current_node, self.graph.depot)
+
         for node in possible_locations:
             edge = (self._current_node, node)
 

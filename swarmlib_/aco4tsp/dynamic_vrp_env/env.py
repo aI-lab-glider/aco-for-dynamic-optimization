@@ -18,12 +18,15 @@ class DynamicVrpEnv:
         self._initial_df = pd.read_csv(data_file)
         self._routes_graph = RoutesGraph(self._initial_df)
 
+    def overall_demand(self):
+        return sum(node.demand for node in self._routes_graph.get_nodes())
+
     @property
     def depot(self):
         return self._routes_graph.depot
 
     def step(self):
-        change = self._change_routes_graph() if random.random() < 0.4 else None
+        change = self._change_routes_graph() if random.random() < 0.5 else None
         return self._routes_graph, change
 
     def _change_routes_graph(self):
@@ -31,7 +34,7 @@ class DynamicVrpEnv:
         # random.choices(
         # population=[
         # self._update_demand,
-        self._remove_node,
+        # self._remove_node,
         # self._add_node],
         # weights=[0.25],
         # k=1
@@ -42,7 +45,7 @@ class DynamicVrpEnv:
         new_demand = random.randint(0, self._routes_graph.max_demand())
         node = random.choice(self._routes_graph.get_nodes())
         new_node = Node(**(asdict(node) | {'demand': new_demand}))
-        self._routes_graph.update_node(node.name, node)
+        self._routes_graph.update_node(node.name, new_node)
         return ChangeDetails('increase_demand', from_node=node, to_node=new_node)
 
     def _remove_node(self):

@@ -3,15 +3,18 @@
 #  Licensed under the BSD 3-Clause License. See LICENSE.txt in the project root for license information.
 # ------------------------------------------------------------------------------------------------------
 import logging
+from typing import Callable
+import seaborn as sns
+import wandb
 import pandas as pd
 from swarmlib_.aco4tsp.vehicle import VechiclePath, Vehicle
 
 from swarmlib_.aco4tsp.dynamic_vrp_env.env import DynamicVrpEnv
 from .ant import Ant
-from .dynamic_vrp_env.routes_graph import RoutesGraph
-from .visualizer import Visualizer
 from ..util.problem_base import ProblemBase
 from pathlib import Path
+import plotly.graph_objects as go
+import plotly
 
 logger = logging.getLogger(__name__)
 
@@ -43,20 +46,13 @@ class ACOAlgorithm(ProblemBase):
         self._Q = kwargs.get('q', 1)  # Hyperparameter Q
         self._num_iterations = kwargs.get(
             'iteration_number', 10)  # Number of iterations
-        self._use_2_opt = kwargs.get('two_opt', False)
-
-        self._visualizer = Visualizer(**kwargs)
-        # self.ant_capacity = vehicle_capacity
-
         self._vehicles = vehicles
+        self._use_2_opt = True
         for vehicle in self._vehicles:
             vehicle.traveled_path = [self._env.depot]
 
-        # self._commited_paths = [(self._env._routes_graph.depot,)
-        #                         for _ in self._vehicles]
         self._commit_freq = commit_freq
         self._previous_commit = 0
-        self._history = []
 
     def solve(self):
         """
@@ -64,7 +60,13 @@ class ACOAlgorithm(ProblemBase):
         """
         ants = [
             Ant(self._env.depot,
-                self._env._routes_graph, self._alpha, self._beta, self._Q, self._use_2_opt, self._random, self._vehicles)
+                self._env._routes_graph,
+                self._alpha,
+                self._beta,
+                self._Q,
+                self._use_2_opt,
+                self._random,
+                self._vehicles)
             for _ in range(self._ant_number)
         ]
         shortest_distance = float('inf')
@@ -85,20 +87,93 @@ class ACOAlgorithm(ProblemBase):
 
             if i % self._commit_freq == 0:
                 self._commit_paths(i, best_vehicle_paths)
+                self.log_commit()
 
             _, change = self._env.step()
             if change:
                 logger.debug(
                     f'[{change.type}] [{change.from_node}] -> [{change.to_node}]')
 
-            uncommited_paths = self._extract_uncommited_paths(
-                best_vehicle_paths)
-            fitness = self._calculate_distance(uncommited_paths)
-            self._history.append(fitness)
+            self.log_iteration(best_vehicle_paths)
 
         logger.info(f'Finish! Shortest_distance="%s" and best_vehicle_paths="%s"',
                     shortest_distance, best_vehicle_paths)
         return best_vehicle_paths, shortest_distance
+
+    def log_iteration(self, best_vehicle_paths):
+        uncommited_paths = self._extract_uncommited_paths(
+            best_vehicle_paths)
+        fitness = self._calculate_distance(uncommited_paths)
+
+        if wandb.run is not None:
+            wandb.log(
+                {"fitness": fitness, "overall_demand": self._env.overall_demand()})
+
+    def log_commit(self):
+        fig = self._create_figure()
+        if wandb.run is not None:
+            wandb.log({'vehicle routes': fig})
+
+    def _create_figure(self):
+        G = self._env._routes_graph
+        edge_x = []
+        edge_y = []
+        vehicle_paths_traces = []
+        colors = sns.color_palette("Set2", len(self._vehicles))
+        for vehicle, color in zip(self._vehicles, colors):
+            edge_x, edge_y = [], []
+            for from_, to_ in zip(vehicle.traveled_path, vehicle.traveled_path[1:]):
+                x0, y0 = G.get_node(from_).coord
+                x1, y1 = G.get_node(to_).coord
+                edge_x.append(x0)
+                edge_x.append(x1)
+                edge_x.append(None)
+                edge_y.append(y0)
+                edge_y.append(y1)
+                edge_y.append(None)
+            edge_trace = go.Scatter(
+                x=edge_x, y=edge_y,
+                line=dict(
+                    width=0.5, color=f'rgb({",".join(str(c*255) for c in color)})'),
+                hoverinfo='none',
+                mode='lines')
+            vehicle_paths_traces.append(edge_trace)
+
+        node_x = []
+        node_y = []
+        for node in G.get_nodes():
+            x, y = node.coord
+            node_x.append(x)
+            node_y.append(y)
+
+        node_trace = go.Scatter(
+            x=node_x, y=node_y,
+            mode='markers',
+            hoverinfo='text',
+            marker=dict(
+                showscale=True,
+                colorscale='Viridis',
+                reversescale=True,
+                color=[],
+                size=10,
+                colorbar=dict(
+                    thickness=15,
+                    title='Customers',
+                    xanchor='left',
+                    titleside='right'
+                ),
+                line_width=2))
+
+        return go.Figure(data=[node_trace, *vehicle_paths_traces],
+                         layout=go.Layout(
+            title='<br>Paths traveled by vehicles',
+            titlefont_size=16,
+            showlegend=False,
+            hovermode='closest',
+            margin=dict(b=20, l=5, r=5, t=40),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+        )
 
     def _run_ants(self, ants: list[Ant]):
         for ant in ants:
@@ -115,8 +190,7 @@ class ACOAlgorithm(ProblemBase):
             self._env._routes_graph.set_pheromone(edge, pheromone)
 
     def _commit_paths(self, step, paths):
-        uncommited_paths = self._extract_uncommited_paths(paths)
-        for vehicle, path in zip(self._vehicles, uncommited_paths):
+        for vehicle, path in zip(self._vehicles, paths):
             vehicle.travel(self._env._routes_graph,
                            path, time_units=step - self._previous_commit)
         self._previous_commit = step
@@ -131,18 +205,3 @@ class ACOAlgorithm(ProblemBase):
             sum(self._env._routes_graph.get_edge_length((a, b))
                 for a, b in zip(p, p[1:])
                 ) for p in paths if len(p) > 1)
-
-    def plot_result(self):
-        return self._visualizer.plot_result(self._env._routes_graph)
-
-    def replay(self):
-        """
-        Play the visualization of the problem
-        """
-        return self._visualizer.replay(graph=self._env._routes_graph)
-
-    def plot_fitness(self):
-        """
-        Plot the fitness over time
-        """
-        return self._visualizer.plot_fitness()
