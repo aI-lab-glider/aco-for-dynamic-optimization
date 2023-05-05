@@ -107,12 +107,14 @@ class ACOAlgorithm(ProblemBase):
         fitness = self._calculate_distance(uncommited_paths)
         pheromone_ratio = self._calculate_pheromone_ratio()
         attractiveness_dispersion = self._calculate_attractiveness_dispersion()
+        attractiveness_ratio = self._calculate_attractiveness_ratio(best_vehicle_paths)
 
         if wandb.run is not None:
             wandb.log({
                 "fitness": fitness,
                 "pheromone_ratio": pheromone_ratio,
                 "attractiveness_dispersion": attractiveness_dispersion,
+                "attractiveness_ratio": attractiveness_ratio,
                 "overall_demand": self._env.overall_demand()
             })
 
@@ -230,3 +232,11 @@ class ACOAlgorithm(ProblemBase):
     def _calculate_attractiveness_dispersion(self):
         pheromone_values = list(map(self._env._routes_graph.get_edge_pheromone, self._env._routes_graph.get_edges()))
         return np.std(pheromone_values)
+
+    def _calculate_attractiveness_ratio(self, best_paths: list[VehiclePath]):
+        pheromone_values = list(map(self._env._routes_graph.get_edge_pheromone, self._env._routes_graph.get_edges()))
+        best_path_total_pheromones = sum(
+            sum(self._env._routes_graph.get_edge_pheromone((a, b))
+                for a, b in zip(p, p[1:])
+                ) for p in best_paths if len(p) > 1)
+        return (best_path_total_pheromones / sum(pheromone_values))
