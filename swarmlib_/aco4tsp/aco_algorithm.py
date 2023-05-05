@@ -7,6 +7,7 @@ from typing import Callable
 import seaborn as sns
 import wandb
 import pandas as pd
+import numpy as np
 from swarmlib_.aco4tsp.vehicle import VehiclePath, Vehicle
 
 from swarmlib_.aco4tsp.dynamic_vrp_env.env import DynamicVrpEnv
@@ -104,11 +105,16 @@ class ACOAlgorithm(ProblemBase):
         uncommited_paths = self._extract_uncommited_paths(
             best_vehicle_paths)
         fitness = self._calculate_distance(uncommited_paths)
-        pheromone_ratio = self._calculate_pheromone_ratio(uncommited_paths)
+        pheromone_ratio = self._calculate_pheromone_ratio()
+        attractiveness_dispersion = self._calculate_attractiveness_dispersion()
 
         if wandb.run is not None:
-            wandb.log(
-                {"fitness": fitness, "pheromone_ratio": pheromone_ratio, "overall_demand": self._env.overall_demand()})
+            wandb.log({
+                "fitness": fitness,
+                "pheromone_ratio": pheromone_ratio,
+                "attractiveness_dispersion": attractiveness_dispersion,
+                "overall_demand": self._env.overall_demand()
+            })
 
     def log_commit(self):
         fig = self._create_figure()
@@ -217,6 +223,10 @@ class ACOAlgorithm(ProblemBase):
           return True
         return False
 
-    def _calculate_pheromone_ratio(self, paths: list[VehiclePath]):
+    def _calculate_pheromone_ratio(self):
         edges = list(filter(self._is_pheromone_level_significant, self._env._routes_graph.get_edges()))
-        return sum(self._env._routes_graph.get_edge_pheromone(edge) for edge in edges) / len(edges);
+        return sum(self._env._routes_graph.get_edge_pheromone(edge) for edge in edges) / len(edges)
+
+    def _calculate_attractiveness_dispersion(self):
+        pheromone_values = list(map(self._env._routes_graph.get_edge_pheromone, self._env._routes_graph.get_edges()))
+        return np.std(pheromone_values)
