@@ -227,8 +227,8 @@ class ACOAlgorithm(ProblemBase):
 
     def _calculate_pheromone_ratio(self):
         edges = list(filter(self._is_pheromone_level_significant, self._env._routes_graph.get_edges()))
-        return sum(self._env._routes_graph.get_edge_pheromone(edge) for edge in edges) / len(self._env._routes_graph.get_edges())
-
+        return len(edges) / len(self._env._routes_graph.get_edges())
+    
     def _calculate_attractiveness_dispersion(self):
         pheromone_values = list(map(self._env._routes_graph.get_edge_pheromone, self._env._routes_graph.get_edges()))
         return np.std(pheromone_values)
