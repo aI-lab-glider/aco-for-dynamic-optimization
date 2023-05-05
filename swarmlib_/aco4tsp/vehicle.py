@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from itertools import accumulate
 from swarmlib_.aco4tsp.dynamic_vrp_env.routes_graph import RoutesGraph
 
-VechiclePath = list[int]
+VehiclePath = list[int]
 
 
 @dataclass
@@ -28,7 +28,7 @@ class Vehicle:
     def __post_init__(self):
         self._traveled_path = []
 
-    def travel(self, routes_graph: RoutesGraph, path: VechiclePath, time_units: int):
+    def travel(self, routes_graph: RoutesGraph, path: VehiclePath, time_units: int):
         """Extends traveled path with the nodes traveled in the given time units"""
         assert self.path_is_valid(
             path), f"First nodes in path should be the same as traveled_path. Instead, path is: {path} and traveled_path is: {self.traveled_path}"

@@ -7,7 +7,7 @@ from typing import Callable
 import seaborn as sns
 import wandb
 import pandas as pd
-from swarmlib_.aco4tsp.vehicle import VechiclePath, Vehicle
+from swarmlib_.aco4tsp.vehicle import VehiclePath, Vehicle
 
 from swarmlib_.aco4tsp.dynamic_vrp_env.env import DynamicVrpEnv
 from .ant import Ant
@@ -104,10 +104,11 @@ class ACOAlgorithm(ProblemBase):
         uncommited_paths = self._extract_uncommited_paths(
             best_vehicle_paths)
         fitness = self._calculate_distance(uncommited_paths)
+        pheromone_ratio = self._calculate_pheromone_ratio(uncommited_paths)
 
         if wandb.run is not None:
             wandb.log(
-                {"fitness": fitness, "overall_demand": self._env.overall_demand()})
+                {"fitness": fitness, "pheromone_ratio": pheromone_ratio, "overall_demand": self._env.overall_demand()})
 
     def log_commit(self):
         fig = self._create_figure()
@@ -195,13 +196,27 @@ class ACOAlgorithm(ProblemBase):
                            path, time_units=step - self._previous_commit)
         self._previous_commit = step
 
-    def _extract_uncommited_paths(self, paths: list[VechiclePath]):
+    def _extract_uncommited_paths(self, paths: list[VehiclePath]):
         return [full_path[len(vehicle.traveled_path)-1:]  # assumption is made, that commited and paths are in the same order
                 for vehicle, full_path in zip(self._vehicles, paths)
                 ]
 
-    def _calculate_distance(self, paths: list[VechiclePath]):
+    def _calculate_distance(self, paths: list[VehiclePath]):
         return sum(
             sum(self._env._routes_graph.get_edge_length((a, b))
                 for a, b in zip(p, p[1:])
                 ) for p in paths if len(p) > 1)
+    
+    def _calculate_threshold(self):
+        # average pheromone level
+        edges = self._env._routes_graph.get_edges()
+        return sum(self._env._routes_graph.get_edge_pheromone(edge) for edge in edges) / len(edges)
+
+    def _is_pheromone_level_significant(self, edge):
+        if self._env._routes_graph.get_edge_pheromone(edge) > self._calculate_threshold():
+          return True
+        return False
+
+    def _calculate_pheromone_ratio(self, paths: list[VehiclePath]):
+        edges = list(filter(self._is_pheromone_level_significant, self._env._routes_graph.get_edges()))
+        return sum(self._env._routes_graph.get_edge_pheromone(edge) for edge in edges) / len(edges);
