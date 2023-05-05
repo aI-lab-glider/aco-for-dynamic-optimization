@@ -26,7 +26,7 @@ class DynamicVrpEnv:
         return self._routes_graph.depot
 
     def step(self):
-        change = self._change_routes_graph() if random.random() < 0.5 else None
+        change = self._change_routes_graph() if random.random() < 0.7 else None
         return self._routes_graph, change
 
     def _change_routes_graph(self):
