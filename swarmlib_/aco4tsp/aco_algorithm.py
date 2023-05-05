@@ -239,4 +239,4 @@ class ACOAlgorithm(ProblemBase):
             sum(self._env._routes_graph.get_edge_pheromone((a, b))
                 for a, b in zip(p, p[1:])
                 ) for p in best_paths if len(p) > 1)
-        return (best_path_pheromones_sum / sum(pheromone_values))
+        return (best_path_pheromones_sum / (sum(pheromone_values) - best_path_pheromones_sum))
