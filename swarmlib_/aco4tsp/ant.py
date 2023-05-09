@@ -8,7 +8,7 @@ from threading import Thread
 import numpy as np
 
 from swarmlib_.aco4tsp.dynamic_vrp_env.routes_graph import RoutesGraph
-from swarmlib_.aco4tsp.vehicle import VechiclePath, Vehicle
+from swarmlib_.aco4tsp.vehicle import VehiclePath, Vehicle
 from .local_2_opt import run_2opt
 logger = logging.getLogger(__name__)
 # pylint: disable=attribute-defined-outside-init,too-many-instance-attributes,too-many-arguments,super-init-not-called,invalid-name
@@ -28,14 +28,14 @@ class Ant(Thread):
         self._current_node = start_node
         self.initialize([[start_node] for _ in vehicles])
 
-    def initialize(self, vehicle_paths: list[VechiclePath]):
+    def initialize(self, vehicle_paths: list[VehiclePath]):
         Thread.__init__(self)
         self.vehicle_paths = vehicle_paths
         self.traveled_edges = []
         self.traveled_distance = 0
 
     @property
-    def traveled_nodes(self) -> VechiclePath:
+    def traveled_nodes(self) -> VehiclePath:
         return [n for path in self.vehicle_paths for n in path]
 
     def run(self):
