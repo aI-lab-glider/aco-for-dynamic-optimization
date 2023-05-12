@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class ACOAlgorithm(ProblemBase):
-    def __init__(self, instance_path: Path, vehicles: list[Vehicle], commit_freq,  **kwargs):
+    def __init__(self, instance_path: Path, vehicles: list[Vehicle], commit_freq, capacity, **kwargs):
         """Initializes a new instance of the `ACOProblem` class.
 
         Arguments:
@@ -51,6 +51,8 @@ class ACOAlgorithm(ProblemBase):
         self._use_2_opt = True
         for vehicle in self._vehicles:
             vehicle.traveled_path = [self._env.depot]
+        
+        self._capacity = capacity
 
         self._commit_freq = commit_freq
         self._previous_commit = 0
@@ -67,12 +69,13 @@ class ACOAlgorithm(ProblemBase):
                 self._Q,
                 self._use_2_opt,
                 self._random,
-                self._vehicles)
+                self._vehicles,
+                self._capacity)
             for _ in range(self._ant_number)
         ]
-        shortest_distance = float('inf')
 
         for i in range(1, self._num_iterations):
+            shortest_distance = float('inf')
             self._run_ants(ants)
             self._decay_pheromone()
             for ant in ants:
@@ -87,8 +90,8 @@ class ACOAlgorithm(ProblemBase):
                     [v.traveled_path for v in self._vehicles])
 
             if i % self._commit_freq == 0:
-                self._commit_paths(i, best_vehicle_paths)
-                self.log_commit()
+                # self._commit_paths(i, best_vehicle_paths)
+                self.log_commit(best_vehicle_paths)
 
             _, change = self._env.step()
             if change:
@@ -102,9 +105,9 @@ class ACOAlgorithm(ProblemBase):
         return best_vehicle_paths, shortest_distance
 
     def log_iteration(self, best_vehicle_paths):
-        uncommited_paths = self._extract_uncommited_paths(
-            best_vehicle_paths)
-        fitness = self._calculate_distance(uncommited_paths)
+        # uncommited_paths = self._extract_uncommited_paths(
+        #    best_vehicle_paths)
+        fitness = self._calculate_distance(best_vehicle_paths)
         pheromone_ratio = self._calculate_pheromone_ratio()
         attractiveness_dispersion = self._calculate_attractiveness_dispersion()
         attractiveness_ratio = self._calculate_attractiveness_ratio(best_vehicle_paths)
@@ -118,20 +121,20 @@ class ACOAlgorithm(ProblemBase):
                 "overall_demand": self._env.overall_demand()
             })
 
-    def log_commit(self):
-        fig = self._create_figure()
+    def log_commit(self, best_vehicle_path):
+        fig = self._create_figure(best_vehicle_path)
         if wandb.run is not None:
             wandb.log({'vehicle routes': fig})
 
-    def _create_figure(self):
+    def _create_figure(self, best_vehicle_path):
         G = self._env._routes_graph
         edge_x = []
         edge_y = []
         vehicle_paths_traces = []
-        colors = sns.color_palette("Set2", len(self._vehicles))
-        for vehicle, color in zip(self._vehicles, colors):
+        colors = sns.color_palette("Set2", len(best_vehicle_path))
+        for vehicle, color in zip(best_vehicle_path, colors):
             edge_x, edge_y = [], []
-            for from_, to_ in zip(vehicle.traveled_path, vehicle.traveled_path[1:]):
+            for from_, to_ in zip(vehicle, vehicle[1:]):
                 x0, y0 = G.get_node(from_).coord
                 x1, y1 = G.get_node(to_).coord
                 edge_x.append(x0)
