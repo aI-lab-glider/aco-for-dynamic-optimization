@@ -49,6 +49,7 @@ class ACOAlgorithm(ProblemBase):
             'iteration_number', 10)  # Number of iterations
         self._vehicles = vehicles
         self._use_2_opt = True
+        self._best_fitness = float('inf')
         for vehicle in self._vehicles:
             vehicle.traveled_path = [self._env.depot]
         
@@ -108,6 +109,8 @@ class ACOAlgorithm(ProblemBase):
         # uncommited_paths = self._extract_uncommited_paths(
         #    best_vehicle_paths)
         fitness = self._calculate_distance(best_vehicle_paths)
+        best_fitness = min(self._best_fitness, fitness)
+        self._best_fitness = best_fitness
         pheromone_ratio = self._calculate_pheromone_ratio()
         attractiveness_dispersion = self._calculate_attractiveness_dispersion()
         attractiveness_ratio = self._calculate_attractiveness_ratio(best_vehicle_paths)
@@ -115,6 +118,7 @@ class ACOAlgorithm(ProblemBase):
         if wandb.run is not None:
             wandb.log({
                 "fitness": fitness,
+                "best_fitness": best_fitness,
                 "pheromone_ratio": pheromone_ratio,
                 "attractiveness_dispersion": attractiveness_dispersion,
                 "attractiveness_ratio": attractiveness_ratio,
