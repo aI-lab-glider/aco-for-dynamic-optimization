@@ -21,7 +21,13 @@ logger = logging.getLogger(__name__)
 
 
 class ACOAlgorithm(ProblemBase):
-    def __init__(self, instance_path: Path, vehicles: list[Vehicle], commit_freq, capacity, **kwargs):
+    def __init__(self,
+                 instance_path: Path,
+                 vehicles: list[Vehicle],
+                 commit_freq,
+                 capacity,
+                 scenario_read_file = None, #'./out.csv', # None
+                 **kwargs):
         """Initializes a new instance of the `ACOProblem` class.
 
         Arguments:
@@ -39,8 +45,7 @@ class ACOAlgorithm(ProblemBase):
         super().__init__(**kwargs)
         self._ant_number = kwargs['ant_number']  # Number of ants
 
-        self._env = DynamicVrpEnv(instance_path)
-
+        self._env = DynamicVrpEnv(instance_path, scenario_read_file=scenario_read_file)
         self._rho = kwargs.get('rho', 0.5)  # evaporation rate
         self._alpha = kwargs.get('alpha', 0.5)  # used for edge detection
         self._beta = kwargs.get('beta', 0.5)  # used for edge detection
@@ -57,7 +62,7 @@ class ACOAlgorithm(ProblemBase):
 
         self._commit_freq = commit_freq
         self._previous_commit = 0
-
+    
     def solve(self):
         """
         Solve the given problem.
@@ -103,6 +108,7 @@ class ACOAlgorithm(ProblemBase):
 
         logger.info(f'Finish! Shortest_distance="%s" and best_vehicle_paths="%s"',
                     shortest_distance, best_vehicle_paths)
+        self._env.prepare_scenario_file()
         return best_vehicle_paths, shortest_distance
 
     def log_iteration(self, best_vehicle_paths):
