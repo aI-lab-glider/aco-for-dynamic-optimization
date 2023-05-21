@@ -76,12 +76,8 @@ class DynamicVrpEnv:
             while (node.is_depot == True):
                 node = random.choice(self._routes_graph.get_nodes())
         else:
-            if self._node_demand_history and self._node_name_history:
-                new_demand = self._node_demand_history.pop()
-                node = self._routes_graph.get_node(self._node_name_history.pop())
-            else:
-                new_demand = 50
-                node = self._routes_graph.get_node('0')
+            new_demand = self._node_demand_history.pop()
+            node = self._routes_graph.get_node(self._node_name_history.pop())
         new_node = Node(**(asdict(node) | {'demand': new_demand}))
         self._history = pd.concat([self._history, pd.DataFrame([new_node]).assign(step=self._counter)], ignore_index=True)
         self._routes_graph.update_node(node.name, new_node)
