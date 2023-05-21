@@ -26,7 +26,7 @@ class ACOAlgorithm(ProblemBase):
                  vehicles: list[Vehicle],
                  commit_freq,
                  capacity,
-                 scenario_read_file = None, # './history.csv'
+                 scenario_input_file = None, #'./scenario.csv',
                  **kwargs):
         """Initializes a new instance of the `ACOProblem` class.
 
@@ -45,7 +45,7 @@ class ACOAlgorithm(ProblemBase):
         super().__init__(**kwargs)
         self._ant_number = kwargs['ant_number']  # Number of ants
 
-        self._env = DynamicVrpEnv(instance_path, scenario_read_file=scenario_read_file)
+        self._env = DynamicVrpEnv(instance_path, scenario_input_file=scenario_input_file)
         self._rho = kwargs.get('rho', 0.5)  # evaporation rate
         self._alpha = kwargs.get('alpha', 0.5)  # used for edge detection
         self._beta = kwargs.get('beta', 0.5)  # used for edge detection

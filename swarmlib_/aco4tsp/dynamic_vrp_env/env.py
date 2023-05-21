@@ -13,19 +13,19 @@ class ChangeDetails:
 
 
 class DynamicVrpEnv:
-    def __init__(self, data_file: Path, scenario_read_file = None) -> None:
+    def __init__(self, data_file: Path, scenario_input_file = None) -> None:
         super().__init__()
         self._counter = 0
         self._next_step = None
         self._initial_df = pd.read_csv(data_file)
-        if scenario_read_file:
-            self._scenario_read_file = pd.read_csv(scenario_read_file)
-            self._node_name_history = list(self._scenario_read_file['name'].to_list())
-            self._node_demand_history = list(self._scenario_read_file['demand'].to_list())
-            self._steps_history = list(self._scenario_read_file['step'].to_list())
+        if scenario_input_file:
+            self._scenario = pd.read_csv(scenario_input_file)
+            self._node_name_history = list(self._scenario['name'].to_list())
+            self._node_demand_history = list(self._scenario['demand'].to_list())
+            self._steps_history = list(self._scenario['step'].to_list())
             self._next_step = self._steps_history.pop(0)
         else:
-            self._scenario_read_file = None
+            self._scenario = None
         self._routes_graph = RoutesGraph(self._initial_df)
         self._history = pd.DataFrame()
 
@@ -38,7 +38,7 @@ class DynamicVrpEnv:
 
     def step(self):
         change = None
-        if self._scenario_read_file is None:
+        if self._scenario is None:
             change = self._change_routes_graph() if random.random() < 0.7 else None
         else:
             if (self._next_step is not None) and self._counter == self._next_step:
@@ -66,7 +66,7 @@ class DynamicVrpEnv:
         return change()
 
     def _update_demand(self):
-        if self._scenario_read_file is None:
+        if self._scenario is None:
             new_demand = random.randint(0, self._routes_graph.max_demand())
             node = random.choice(self._routes_graph.get_nodes())
             while (node.is_depot == True):
