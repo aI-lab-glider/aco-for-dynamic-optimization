@@ -16,11 +16,16 @@ class DynamicVrpEnv:
     def __init__(self, data_file: Path, scenario_read_file = None) -> None:
         super().__init__()
         self._counter = 0
+        self._next_step = 0
         self._initial_df = pd.read_csv(data_file)
         if scenario_read_file:
             self._scenario_read_file = pd.read_csv(scenario_read_file)
-            self._nodes_history = list(self._scenario_read_file['node'].to_list())
+            self._node_name_history = list(self._scenario_read_file['name'].to_list())
+            self._node_demand_history = list(self._scenario_read_file['demand'].to_list())
             self._steps_history = list(self._scenario_read_file['step'].to_list())
+            self._next_step = self._steps_history.pop()
+        else:
+            self._scenario_read_file = None
         self._routes_graph = RoutesGraph(self._initial_df)
         self._history = pd.DataFrame()
 
@@ -32,8 +37,19 @@ class DynamicVrpEnv:
         return self._routes_graph.depot
 
     def step(self):
+        change = None
+        if self._scenario_read_file is None:
+            change = self._change_routes_graph() if random.random() < 0.7 else None
+        else:
+            if self._next_step is None:
+                self._counter = self._counter + 1
+                return self._routes_graph, None
+            else:
+                if self._counter == self._next_step:
+                    change = self._change_routes_graph()
+                    self._next_step = self._steps_history.pop() if len(self._steps_history) else None
+        
         self._counter = self._counter + 1
-        change = self._change_routes_graph() if random.random() < 0.7 else None
         return self._routes_graph, change
     
     def prepare_scenario_file(self):
@@ -54,14 +70,18 @@ class DynamicVrpEnv:
         return change()
 
     def _update_demand(self):
-        if hasattr(self, "_scenario_read_file"):
-            new_demand = self._demand_changes.pop()
+        if not (self._scenario_read_file is None):
+            if self._node_demand_history and self._node_name_history:
+                new_demand = self._node_demand_history.pop()
+                node = self._routes_graph.get_node(self._node_name_history.pop())
+            else:
+                new_demand = 0
+                node = self._routes_graph.get_node('0')
         else:
             new_demand = random.randint(0, self._routes_graph.max_demand())
-
-        node = random.choice(self._routes_graph.get_nodes())
-        while (node.is_depot == True):
             node = random.choice(self._routes_graph.get_nodes())
+            while (node.is_depot == True):
+                node = random.choice(self._routes_graph.get_nodes())
         new_node = Node(**(asdict(node) | {'demand': new_demand}))
         self._history = pd.concat([self._history, pd.DataFrame([new_node]).assign(step=self._counter)], ignore_index=True)
         self._routes_graph.update_node(node.name, new_node)
