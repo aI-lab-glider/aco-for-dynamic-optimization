@@ -23,7 +23,7 @@ class DynamicVrpEnv:
             self._node_name_history = list(self._scenario_read_file['name'].to_list())
             self._node_demand_history = list(self._scenario_read_file['demand'].to_list())
             self._steps_history = list(self._scenario_read_file['step'].to_list())
-            self._next_step = self._steps_history.pop()
+            self._next_step = self._steps_history.pop(0)
         else:
             self._scenario_read_file = None
         self._routes_graph = RoutesGraph(self._initial_df)
@@ -41,13 +41,9 @@ class DynamicVrpEnv:
         if self._scenario_read_file is None:
             change = self._change_routes_graph() if random.random() < 0.7 else None
         else:
-            if self._next_step is None:
-                self._counter = self._counter + 1
-                return self._routes_graph, None
-            else:
-                if self._counter == self._next_step:
-                    change = self._change_routes_graph()
-                    self._next_step = self._steps_history.pop() if len(self._steps_history) else None
+            if (self._next_step is not None) and self._counter == self._next_step:
+                change = self._change_routes_graph()
+                self._next_step = self._steps_history.pop(0) if len(self._steps_history) else None
         
         self._counter = self._counter + 1
         return self._routes_graph, change
@@ -76,8 +72,8 @@ class DynamicVrpEnv:
             while (node.is_depot == True):
                 node = random.choice(self._routes_graph.get_nodes())
         else:
-            new_demand = self._node_demand_history.pop()
-            node = self._routes_graph.get_node(self._node_name_history.pop())
+            new_demand = self._node_demand_history.pop(0)
+            node = self._routes_graph.get_node(self._node_name_history.pop(0))
         new_node = Node(**(asdict(node) | {'demand': new_demand}))
         self._history = pd.concat([self._history, pd.DataFrame([new_node]).assign(step=self._counter)], ignore_index=True)
         self._routes_graph.update_node(node.name, new_node)

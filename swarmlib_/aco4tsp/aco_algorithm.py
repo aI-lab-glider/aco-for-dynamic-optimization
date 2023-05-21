@@ -26,7 +26,7 @@ class ACOAlgorithm(ProblemBase):
                  vehicles: list[Vehicle],
                  commit_freq,
                  capacity,
-                 scenario_read_file = './out1.csv', # None
+                 scenario_read_file = None, # './history.csv'
                  **kwargs):
         """Initializes a new instance of the `ACOProblem` class.
 
