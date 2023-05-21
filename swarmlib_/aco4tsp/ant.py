@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class Ant(Thread):
-    def __init__(self, start_node, graph: RoutesGraph, alpha, beta, Q, use_2_opt, random, vehicles: list[Vehicle]):
+    def __init__(self, start_node, graph: RoutesGraph, alpha, beta, Q, use_2_opt, random, vehicles: list[Vehicle], capacity):
         """Initializes a new instance of the Ant class."""
         self.graph = graph
         self._alpha = alpha
@@ -26,6 +26,7 @@ class Ant(Thread):
         self._vehicles = vehicles
         self._load = 0
         self._current_node = start_node
+        self._capacity = capacity
         self.initialize([[start_node] for _ in vehicles])
 
     def initialize(self, vehicle_paths: list[VehiclePath]):
@@ -35,14 +36,14 @@ class Ant(Thread):
         self.traveled_distance = 0
 
     @property
-    def traveled_nodes(self) -> VehiclePath:
+    def travelled_nodes(self) -> VehiclePath:
         return [n for path in self.vehicle_paths for n in path]
 
     def run(self):
         """Run the ant."""
         # Possible locations where the ant can got to from the current node without the location it has already been.
         depot = self.graph.depot
-        while self.graph.get_connected_nodes(depot).difference(self.traveled_nodes):
+        while self.graph.get_connected_nodes(depot).difference(self.travelled_nodes):
             for vehicle_id, vehicle in enumerate(self._vehicles):
                 self._make_step_for_vehicle(vehicle_id, vehicle)
 
@@ -50,10 +51,10 @@ class Ant(Thread):
         path = self.vehicle_paths[vehicle_id]
         self._current_node = path[-1]
         possible_locations = self.graph.get_connected_nodes(
-            self._current_node).difference(self.traveled_nodes)
+            self._current_node).difference(self.travelled_nodes)
         a, b = self._select_edge(possible_locations)
         demand = self.graph.get_vertex_demand(b)
-        if self._load + demand <= vehicle.capacity:
+        if self._load + demand <= self._capacity:
             self._load += demand
             self._move_to_next_node((a, b), vehicle_id)
         else:
@@ -104,9 +105,9 @@ class Ant(Thread):
     def spawn_pheromone(self):
         # loop all except the last item
         # TODO: take different vehicles into account
-        for idx in range(len(self.traveled_nodes) - 1):
+        for idx in range(len(self.travelled_nodes) - 1):
             traveled_edge = (
-                self.traveled_nodes[idx], self.traveled_nodes[idx+1])
+                self.travelled_nodes[idx], self.travelled_nodes[idx+1])
             pheromone = self.graph.get_edge_pheromone(traveled_edge)
             pheromone += self._Q / \
                 max(self.graph.get_edge_length(traveled_edge), 1)
