@@ -13,7 +13,7 @@ class ChangeDetails:
 
 
 class DynamicVrpEnv:
-    def __init__(self, data_file: Path, scenario_input_file = None) -> None:
+    def __init__(self, data_file: Path, scenario_input_file=None) -> None:
         super().__init__()
         self._counter = 0
         self._next_step = None
@@ -21,7 +21,8 @@ class DynamicVrpEnv:
         if scenario_input_file:
             self._scenario = pd.read_csv(scenario_input_file)
             self._node_name_history = list(self._scenario['name'].to_list())
-            self._node_demand_history = list(self._scenario['demand'].to_list())
+            self._node_demand_history = list(
+                self._scenario['demand'].to_list())
             self._steps_history = list(self._scenario['step'].to_list())
             self._next_step = self._steps_history.pop(0)
         else:
@@ -43,15 +44,16 @@ class DynamicVrpEnv:
         else:
             if (self._next_step is not None) and self._counter == self._next_step:
                 change = self._change_routes_graph()
-                self._next_step = self._steps_history.pop(0) if len(self._steps_history) else None
-        
+                self._next_step = self._steps_history.pop(
+                    0) if len(self._steps_history) else None
+
         self._counter = self._counter + 1
         return self._routes_graph, change
-    
+
     def prepare_scenario_file(self):
-        filepath = Path('./out.csv')  
-        filepath.parent.mkdir(parents=True, exist_ok=True)  
-        self._history.to_csv(filepath, index=False)  
+        filepath = Path('./out.csv')
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        self._history.to_csv(filepath, index=False)
 
     def _change_routes_graph(self):
         change = self._update_demand
@@ -73,9 +75,18 @@ class DynamicVrpEnv:
                 node = random.choice(self._routes_graph.get_nodes())
         else:
             new_demand = self._node_demand_history.pop(0)
-            node = self._routes_graph.get_node(self._node_name_history.pop(0))
+            try:
+                node = self._routes_graph.get_node(
+                    self._node_name_history.pop(0))
+            except:
+                return ChangeDetails('no_change', node, None)
+        if new_demand == 0:
+            # self._routes_graph.remove_node(node.name)
+            return ChangeDetails('no_change', node, None)
+
         new_node = Node(**(asdict(node) | {'demand': new_demand}))
-        self._history = pd.concat([self._history, pd.DataFrame([new_node]).assign(step=self._counter)], ignore_index=True)
+        self._history = pd.concat([self._history, pd.DataFrame(
+            [new_node]).assign(step=self._counter)], ignore_index=True)
         self._routes_graph.update_node(node.name, new_node)
         return ChangeDetails('increase_demand', from_node=node, to_node=new_node)
 
