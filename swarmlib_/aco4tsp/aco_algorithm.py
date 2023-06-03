@@ -81,7 +81,6 @@ class ACOAlgorithm(ProblemBase):
         ]
 
         for i in range(1, self._num_iterations):
-            print('Iteration: ', i)
             shortest_distance = float('inf')
             self._run_ants(ants)
             self._decay_pheromone()
