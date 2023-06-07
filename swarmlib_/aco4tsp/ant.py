@@ -54,12 +54,12 @@ class Ant(Thread):
             self._current_node).difference(self.travelled_nodes)
         a, b = self._select_edge(possible_locations)
         demand = self.graph.get_vertex_demand(b)
-        if self._load + demand <= self._capacity:
-            self._load += demand
+        if vehicle.load + demand <= vehicle.capacity:
+            vehicle.load += demand
             self._move_to_next_node((a, b), vehicle_id)
         else:
             self._move_to_next_node((a, self.graph.depot), vehicle_id)
-            self._load = 0
+            vehicle.load = 0
 
     def _select_edge(self, possible_locations):
         """Select the edge where to go next."""
@@ -81,6 +81,9 @@ class Ant(Thread):
             attractiveness[node] = pow(
                 edge_pheromone, self._alpha)*pow(1/distance, self._beta)
             overall_attractiveness += attractiveness[node]
+        
+        if attractiveness == {}:
+            return (self._current_node, self.graph.depot)
 
         if overall_attractiveness == 0:
             selected_edge = (self._current_node,

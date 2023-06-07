@@ -16,6 +16,7 @@ class Vehicle:
     capacity: int
     speed: int
     traveled_distance: float = 0
+    load: int = 0
 
     @property
     def traveled_path(self):
